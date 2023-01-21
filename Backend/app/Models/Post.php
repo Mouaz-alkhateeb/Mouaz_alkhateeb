@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Post extends Model
 {
     use HasFactory;
-    protected $fillable = ['title', 'content', 'image', 'user_id'];
+    protected $fillable = ['title', 'content', 'file_name', 'file_data', 'file_ext', 'file_size', 'user_id'];
 
     public function comments()
     {

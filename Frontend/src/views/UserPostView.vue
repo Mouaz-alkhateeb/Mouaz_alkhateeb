@@ -1,5 +1,14 @@
 <template>
   <div class="text-center">
+    <v-progress-circular
+      v-if="loader_work"
+      :size="70"
+      :width="3"
+      indeterminate
+      color="primary"
+    ></v-progress-circular>
+  </div>
+  <div class="text-center">
     <h1>My Posts</h1>
   </div>
   <v-row class="px-3 py-5">
@@ -12,7 +21,7 @@
       <v-img
         class="align-end text-white"
         height="150"
-        src="https://cdn.vuetifyjs.com/images/cards/docks.jpg"
+        :src="'data:image/jpeg;base64,' + post.file_data"
         cover
       >
         <v-card-title>{{ post.title }}</v-card-title>
@@ -88,7 +97,9 @@ export default {
   mounted() {
     this.$store.dispatch("getCurrentUserPosts");
   },
-  data: () => ({}),
+  data: () => ({
+    loader_work: false,
+  }),
   methods: {
     deletePost(post_id) {
       const headers = {
@@ -99,17 +110,19 @@ export default {
       let data = {
         id: post_id,
       };
+      this.loader_work = true;
       return new Promise((resolve, reject) => {
         axios
-          .post("http://127.0.0.1:8000/api/post/delete", data, {
+          .post(this.getApiURL + "/post/delete", data, {
             headers: headers,
           })
           .then((res) => {
-            //this.$router.push("/posts");
-            location.reload();
+            this.loader_work = false;
+            this.$router.go(0);
             resolve(res);
           })
           .catch((error) => {
+            this.loader_work = false;
             reject(error);
           });
       });
@@ -124,6 +137,9 @@ export default {
     },
     getToken() {
       return this.$store.getters.getToken;
+    },
+    getApiURL() {
+      return this.$store.getters.getApiURL;
     },
   },
 };

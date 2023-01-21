@@ -51,7 +51,7 @@ export default {
     passwordRules: [
       (v) => !!v || "password is required",
       (v) =>
-        (v && v.length <= 20) || "password must be less than 20 characters",
+        (v && v.length <= 10) || "password must be less than 20 characters",
     ],
     email: "",
     emailRules: [
@@ -64,23 +64,26 @@ export default {
     reset() {
       this.$refs.form.reset();
     },
-    register() {
-      this.isLoading = true;
-      this.$store
-        .dispatch("register", {
-          name: this.name,
-          email: this.email,
-          password: this.password,
-        })
-        .then(() => {
-          this.isLoading = false;
-          this.$router.push("/");
-        })
-        .catch((error) => {
-          this.isLoading = false;
-          this.error = " There was error during register process";
-          console.log(error.message);
-        });
+    async register() {
+      const { valid } = await this.$refs.form.validate();
+      if (valid) {
+        this.isLoading = true;
+        this.$store
+          .dispatch("register", {
+            name: this.name,
+            email: this.email,
+            password: this.password,
+          })
+          .then(() => {
+            this.isLoading = false;
+            this.$router.push("/");
+          })
+          .catch((error) => {
+            this.isLoading = false;
+            this.error = " There was error during register process";
+            console.log(error.message);
+          });
+      }
     },
   },
 };

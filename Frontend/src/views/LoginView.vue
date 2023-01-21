@@ -53,22 +53,25 @@ export default {
       this.$refs.form.reset();
     },
 
-    login() {
-      this.isLoading = true;
-      this.$store
-        .dispatch("login", {
-          email: this.email,
-          password: this.password,
-        })
-        .then(() => {
-          this.isLoading = false;
-          this.$router.push("/");
-        })
-        .catch((error) => {
-          this.isLoading = false;
-          this.error = " There was error during login process";
-          console.log(error.message);
-        });
+    async login() {
+      const { valid } = await this.$refs.form.validate();
+      if (valid) {
+        this.isLoading = true;
+        this.$store
+          .dispatch("login", {
+            email: this.email,
+            password: this.password,
+          })
+          .then(() => {
+            this.isLoading = false;
+            this.$router.push("/");
+          })
+          .catch((error) => {
+            this.isLoading = false;
+            this.error = " There was error during login process";
+            console.log(error.message);
+          });
+      }
     },
   },
 };

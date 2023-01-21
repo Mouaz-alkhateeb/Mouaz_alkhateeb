@@ -9,7 +9,8 @@ export default createStore({
     loggedIn: false,
     user: null,
     posts: [],
-    user_posts: []
+    user_posts: [],
+    apiURL: "http://127.0.0.1:8000/api"
   },
   plugins: [new VuexPersistence().plugin],
   getters: {
@@ -27,6 +28,9 @@ export default createStore({
     },
     getToken(state) {
       return state.token
+    },
+    getApiURL(state) {
+      return state.apiURL
     }
   },
   mutations: {
@@ -38,13 +42,14 @@ export default createStore({
     },
     set_user(state, payload) {
       state.user = payload
-    },
+    }
+
   },
   actions: {
     login({ commit }, payload) {
       return new Promise((resolve, reject) => {
         axios
-          .post("http://127.0.0.1:8000/api/auth/login", {
+          .post(this.state.apiURL + "/auth/login", {
             email: payload.email,
             password: payload.password,
           })
@@ -62,7 +67,7 @@ export default createStore({
     register({ commit }, payload) {
       return new Promise((resolve, reject) => {
         axios
-          .post("http://127.0.0.1:8000/api/auth/register", {
+          .post(this.state.apiURL + "/auth/register", {
             name: payload.name,
             email: payload.email,
             password: payload.password,
@@ -80,14 +85,14 @@ export default createStore({
     },
     logout({ commit, state }) {
       return new Promise((resolve, reject) => {
-        axios.post("http://127.0.0.1:8000/api/auth/logout", {
+        axios.post(this.state.apiURL + "/auth/logout", {
           token: state.token
         })
           .then((res) => {
             commit('set_token', null)
             commit('set_loggedIn', false)
             commit('set_user', null)
-            localStorage.removeItem("token");
+            localStorage.clear();
             resolve(res)
           })
           .catch((error) => {
@@ -98,7 +103,7 @@ export default createStore({
     getAllPosts({ commit, state }) {
       return new Promise((resolve, reject) => {
         axios
-          .get("http://127.0.0.1:8000/api/posts", { token: state.token })
+          .get(this.state.apiURL + "/posts", { token: state.token })
           .then((res) => {
             state.posts = res.data.data;
             resolve(res)
@@ -116,7 +121,7 @@ export default createStore({
       };
       return new Promise((resolve, reject) => {
         axios
-          .get("http://127.0.0.1:8000/api/user_posts", { headers: headers })
+          .get(this.state.apiURL + "/user_posts", { headers: headers })
           .then((res) => {
             state.user_posts = res.data.data;
             resolve(res)

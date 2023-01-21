@@ -3,7 +3,7 @@
     <v-img
       class="align-end text-white"
       height="400"
-      src="https://cdn.vuetifyjs.com/images/cards/docks.jpg"
+      :src="'data:image/jpeg;base64,' + post.file_data"
       cover
     >
       <v-card-title>{{ post.title }}</v-card-title>
@@ -26,53 +26,82 @@
         <v-col v-for="card in cards" :key="card" cols="12">
           <v-card>
             <v-list lines="two">
-              <v-list-subheader>{{ card }}</v-list-subheader>
+              <v-list-subheader
+                >{{ post.commentsCount }} Comments
+              </v-list-subheader>
               <template v-for="(comment, index) in comments" :key="index">
                 <v-list-item>
                   <template v-slot:prepend>
                     <v-avatar color="grey-darken-1"></v-avatar>
                   </template>
 
-                  <v-list-item-title> {{ comment.username }}</v-list-item-title>
+                  <v-list-item-title>
+                    {{ comment.username }}
+                    <v-btn
+                      v-if="get_loggedIn"
+                      color="red"
+                      size="xs"
+                      rounded
+                      class="px-2 justify-center"
+                      @click.prevent="deleteComment(comment.id)"
+                    >
+                      Delete
+                    </v-btn>
+                  </v-list-item-title>
 
                   <v-list-item-subtitle>
                     {{ comment.content }}
                   </v-list-item-subtitle>
                 </v-list-item>
-
-                <v-divider
-                  v-if="n !== 3"
-                  :key="`divider-${n}`"
-                  inset
-                ></v-divider>
+                <v-divider v-if="n !== 3" :key="`divider-${n}`" inset>
+                </v-divider>
               </template>
             </v-list>
           </v-card>
-          <div class="my-2">
-            <v-text-field
-              v-model="commentContent"
-              label="Add Comment"
-              required
-            ></v-text-field>
-          </div>
+          <v-form ref="form" v-model="valid" lazy-validation
+            ><div class="my-2">
+              <v-text-field
+                v-model="commentContent"
+                label="Add Comment"
+                required
+                :rules="commentRules"
+              ></v-text-field>
+            </div>
+            <v-card-actions>
+              <v-btn
+                v-if="commentContent"
+                color="green"
+                @click.prevent="addComment()"
+              >
+                Add Comment</v-btn
+              >
+            </v-card-actions></v-form
+          >
         </v-col>
       </v-row>
     </div>
-    <v-card-actions>
-      <v-btn color="green" @click.prevent="addComment()"> Add Comment</v-btn>
-    </v-card-actions>
   </v-card>
   <v-dialog v-model="dialog" max-width="600px">
     <v-card>
       <v-card-title>
         <span class="text-h5">Update Post</span>
       </v-card-title>
+      <div class="text-center">
+        <v-progress-circular
+          v-if="loader_work"
+          :size="70"
+          :width="3"
+          indeterminate
+          color="primary"
+        ></v-progress-circular>
+      </div>
       <v-card-text>
-        <v-form class="px-3" ref="form">
+        <v-form class="px-3" ref="form" v-model="valid" lazy-validation>
           <v-text-field
             v-model="post.title"
             label=" Title"
             required
+            :rules="titleRules"
             prepend-icon="mdi-rename-box"
           ></v-text-field>
 
@@ -80,14 +109,23 @@
             v-model="post.content"
             label="Content"
             required
+            :rules="contentRules"
             prepend-icon=" mdi-city"
           ></v-text-field>
-
-          <!-- <v-file-input
+          <v-img
+            class="align-end text-white"
+            height="400"
+            :src="'data:image/jpeg;base64,' + post.file_data"
+            cover
+          ></v-img>
+          <v-file-input
+            id="image"
+            ref="fileInput"
             v-model="post.image"
             label="Upload Image"
             prepend-icon=" mdi-file"
-          ></v-file-input> -->
+            @input="onSelectFile"
+          ></v-file-input>
 
           <br />
           <v-btn
@@ -99,12 +137,7 @@
           >
             update Now
           </v-btn>
-          <v-btn
-            color="red darken-1"
-            text
-            @click.prevent="this.dialog = false"
-            rounded
-          >
+          <v-btn color="red darken-1" text @click.prevent="close()" rounded>
             close
           </v-btn>
         </v-form>
@@ -124,17 +157,34 @@ export default {
     post_id: null,
     cards: ["All Comments"],
     dialog: false,
+    loader_work: false,
+    valid: true,
+    titleRules: [
+      (v) => !!v || "Title is required",
+      (v) => (v && v.length <= 20) || "Title must be less than 20 characters",
+    ],
+    contentRules: [(v) => !!v || "Content is required"],
+
     comments: [],
     commentContent: "",
+    commentRules: [(v) => !!v || "Content Comment is required"],
     post: {
       title: "",
       content: "",
-      image: null,
+      image: "",
+      commentsCount: 0,
+      file_data: "",
     },
   }),
   computed: {
     getToken() {
       return this.$store.getters.getToken;
+    },
+    getApiURL() {
+      return this.$store.getters.getApiURL;
+    },
+    get_loggedIn() {
+      return this.$store.getters.get_loggedIn;
     },
   },
   methods: {
@@ -149,7 +199,7 @@ export default {
       };
       return new Promise((resolve, reject) => {
         axios
-          .post("http://127.0.0.1:8000/api/post/show", data, {
+          .post(this.getApiURL + "/post/show", data, {
             headers: headers,
           })
           .then((res) => {
@@ -162,7 +212,7 @@ export default {
           });
       });
     },
-    addComment() {
+    async addComment() {
       const headers = {
         accept: "application/json",
         "content-type": "application/json",
@@ -172,9 +222,12 @@ export default {
         post_id: this.post_id,
         content: this.commentContent,
       };
+
+      //const { valid } = await this.$refs.form.validate();
+
       return new Promise((resolve, reject) => {
         axios
-          .post("http://127.0.0.1:8000/api/post/add_comment", data, {
+          .post(this.getApiURL + "/post/add_comment", data, {
             headers: headers,
           })
           .then((res) => {
@@ -187,10 +240,10 @@ export default {
           });
       });
     },
-    updatepost() {
+    async updatepost() {
       const headers = {
         accept: "application/json",
-        "content-type": "application/json",
+        "Content-Type": "multipart/form-data",
         authorization: "Bearer " + this.getToken,
       };
       let data = {
@@ -199,20 +252,64 @@ export default {
         content: this.post.content,
         image: this.post.image,
       };
+      const { valid } = await this.$refs.form.validate();
+      if (valid) {
+        this.loader_work = true;
+        return new Promise((resolve, reject) => {
+          axios
+            .post(this.getApiURL + "/post/update", data, {
+              headers: headers,
+            })
+            .then((res) => {
+              this.loader_work = false;
+              location.reload();
+              resolve(res);
+            })
+            .catch((error) => {
+              this.loader_work = false;
+              reject(error);
+            });
+        });
+      }
+    },
+    deleteComment(comment_id) {
+      const headers = {
+        accept: "application/json",
+        "content-type": "application/json",
+        authorization: "Bearer " + this.getToken,
+      };
+      let data = {
+        id: comment_id,
+      };
       return new Promise((resolve, reject) => {
         axios
-          .post("http://127.0.0.1:8000/api/post/update", data, {
+          .post(this.getApiURL + "/post/delete_comment", data, {
             headers: headers,
           })
           .then((res) => {
-            // this.$router.push("/posts");
-            location.reload();
+            this.$router.go(0);
             resolve(res);
           })
           .catch((error) => {
             reject(error);
           });
       });
+    },
+    onSelectFile() {
+      const input = this.$refs.fileInput;
+      const { files } = input;
+
+      if (files && files[0]) {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {};
+        reader.readAsDataURL(files[0]);
+        this.image = files[0];
+      }
+    },
+    close() {
+      this.dialog = false;
+      this.$refs.form.reset();
     },
   },
 };
