@@ -48,12 +48,12 @@ class PostService
             ]
         )->first();
 
-        if (isset($post->comments)) {
-            foreach ($post->comments as $comment) {
-                $comment->username = $comment->user->name;
-            }
-            $post->commentsCount = count($post->comments);
-        }
+        // if (isset($post->comments)) {
+        //     foreach ($post->comments as $comment) {
+        //         $comment->username = $comment->user->name;
+        //     }
+        //     $post->commentsCount = count($post->comments);
+        // }
 
         return $post;
     }
@@ -120,6 +120,13 @@ class PostService
             ['user_id', auth()->user()->id],
         ])->first();
         return ($comment->delete()) ? true : false;
+    }
+
+    public static function updatePostComments($postId)
+    {
+        $post = Post::find($postId);
+        $post->comments_count += 1;
+        $post->save();
     }
 
 }

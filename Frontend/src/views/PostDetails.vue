@@ -27,7 +27,7 @@
           <v-card>
             <v-list lines="two">
               <v-list-subheader
-                >{{ post.commentsCount }} Comments
+                >{{ post.comments_count }} Comments
               </v-list-subheader>
               <template v-for="(comment, index) in post.comments" :key="index">
                 <v-list-item>

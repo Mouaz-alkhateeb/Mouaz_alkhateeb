@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Comment;
+use App\Services\PostService;
 
 class CommentObserver
 {
@@ -14,7 +15,7 @@ class CommentObserver
      */
     public function created(Comment $comment)
     {
-        return 'New comment is added';
+        PostService::updatePostComments($comment->post_id);
     }
 
     /**

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->longText('file_data')->nullable();
             $table->string('file_ext')->nullable();
             $table->string('file_size')->nullable();
+            $table->integer('comments_count')->default(0);
             $table->timestamps();
         });
     }
