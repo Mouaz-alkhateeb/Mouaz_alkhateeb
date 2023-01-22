@@ -10,6 +10,7 @@ export default createStore({
     user: null,
     posts: [],
     user_posts: [],
+    post: {},
     apiURL: "http://127.0.0.1:8000/api"
   },
   plugins: [new VuexPersistence().plugin],
@@ -26,6 +27,7 @@ export default createStore({
     getCurrentUserPosts(state) {
       return state.user_posts
     },
+
     getToken(state) {
       return state.token
     },
@@ -125,6 +127,29 @@ export default createStore({
           .then((res) => {
             state.user_posts = res.data.data;
             resolve(res)
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      });
+    },
+    getDetailsPost({ commit, state }, payload) {
+      let headers = {
+        accept: "application/json",
+        authorization: "Bearer " + state.token,
+        "Content-Type": "multipart/form-data",
+      };
+      let data = {
+        id: payload,
+      };
+      return new Promise((resolve, reject) => {
+        axios
+          .post(this.state.apiURL + "/post/show", data, {
+            headers: headers,
+          })
+          .then((res) => {
+            this.state.post = res.data.data;
+            resolve(res);
           })
           .catch((error) => {
             reject(error);

@@ -8,7 +8,7 @@
         rounded="xl"
         class="ml-3"
         color="blue"
-        @click="this.dialog = true"
+        @click="open"
         >Add Post</v-btn
       >
     </h1>
@@ -18,7 +18,7 @@
     <v-card
       class="ma-5"
       max-width="350"
-      v-for="(post, index) in posts"
+      v-for="(post, index) in getAllPosts"
       :key="index"
     >
       <v-img
@@ -61,8 +61,8 @@
           ></v-text-field>
 
           <v-text-field
-            v-model="content"
             label="Content"
+            v-model="content"
             required
             :rules="contentRules"
             prepend-icon=" mdi-city"
@@ -78,15 +78,16 @@
 
           <br />
           <v-btn
+            v-if="content && title"
             color="blue darken-1"
             class="mr-2"
             text
-            @click.prevent="createpost()"
+            @click.prevent="createpost"
             rounded
           >
             Add Now
           </v-btn>
-          <v-btn color="red darken-1" text @click.prevent="close()" rounded>
+          <v-btn color="red darken-1" text @click.prevent="close" rounded>
             close
           </v-btn>
         </v-form>
@@ -94,93 +95,89 @@
     </v-card>
   </v-dialog>
 </template>
-
-<script>
+<script setup>
+import { computed, onMounted, ref } from "vue";
+import { useStore } from "vuex";
 import axios from "axios";
-export default {
-  name: "HomeView",
-  mounted() {
-    this.$store.dispatch("getAllPosts");
-  },
-  data: () => ({
-    dialog: false,
-    content: "",
-    image: "",
-    valid: true,
-    title: "",
-    titleRules: [
-      (v) => !!v || "Title is required",
-      (v) => (v && v.length <= 20) || "Title must be less than 20 characters",
-    ],
-    contentRules: [(v) => !!v || "Content is required"],
-    loader_work: false,
-  }),
-  computed: {
-    posts() {
-      return this.$store.getters.getAllPosts;
-    },
-    get_loggedIn() {
-      return this.$store.getters.get_loggedIn;
-    },
-    getToken() {
-      return this.$store.getters.getToken;
-    },
-    getApiURL() {
-      return this.$store.getters.getApiURL;
-    },
-  },
-  methods: {
-    async createpost() {
-      const headers = {
-        accept: "application/json",
-        authorization: "Bearer " + this.getToken,
-        "Content-Type": "multipart/form-data",
-      };
-      let data = {
-        title: this.title,
-        content: this.content,
-        image: this.image,
-      };
-      const { valid } = await this.$refs.form.validate();
-      if (valid) {
-        this.loader_work = true;
-        return new Promise((resolve, reject) => {
-          axios
-            .post(this.getApiURL + "/post/create", data, {
-              headers: headers,
-            })
-            .then((res) => {
-              this.loader_work = false;
-              this.dialog = false;
-              this.$router.push("/posts");
-              resolve(res);
-            })
-            .catch((error) => {
-              this.loader_work = false;
-              reject(error);
-            });
+import { useRouter } from "vue-router";
+
+const store = useStore();
+const router = useRouter();
+const dialog = ref(false);
+const loader_work = ref(false);
+let valid = ref(true);
+const titleRules = ref([
+  (v) => !!v || "Title is required",
+  (v) => (v && v.length <= 20) || "Title must be less than 20 characters",
+]);
+const contentRules = ref([(v) => !!v || "Content is required"]);
+const content = ref("");
+const image = ref("");
+const title = ref("");
+const open = () => {
+  dialog.value = true;
+};
+const close = () => {
+  dialog.value = false;
+};
+onMounted(() => {
+  const posts = store.dispatch("getAllPosts");
+  return {
+    posts,
+  };
+});
+const get_loggedIn = computed(() => {
+  return store.getters.get_loggedIn;
+});
+const getAllPosts = computed(() => {
+  return store.getters.getAllPosts;
+});
+const getToken = computed(() => {
+  return store.getters.getToken;
+});
+const getApiURL = computed(() => {
+  return store.getters.getApiURL;
+});
+const createpost = async () => {
+  let headers = {
+    accept: "application/json",
+    authorization: "Bearer " + getToken.value,
+    "Content-Type": "multipart/form-data",
+  };
+  let data = {
+    title: title.value,
+    content: content.value,
+    image: image.value,
+  };
+
+  if (valid.value) {
+    loader_work.value = true;
+    return new Promise((resolve, reject) => {
+      axios
+        .post(getApiURL.value + "/post/create", data, {
+          headers: headers,
+        })
+        .then((res) => {
+          loader_work.value = false;
+
+          dialog.value = false;
+          router.push({ name: "posts" });
+          resolve(res);
+        })
+        .catch((error) => {
+          loader_work.value = false;
+          setTimeout(() => {
+            dialog.value = false;
+          }, 1000);
+          reject(error);
         });
-      }
-    },
-    onSelectFile() {
-      const input = this.$refs.fileInput;
-      const { files } = input;
-
-      if (files && files[0]) {
-        const reader = new FileReader();
-
-        reader.onload = (e) => {};
-        reader.readAsDataURL(files[0]);
-        this.image = files[0];
-      }
-    },
-    close() {
-      this.dialog = false;
-      this.$refs.form.reset();
-    },
-  },
+    });
+  } else {
+    dialog.value = false;
+  }
 };
 </script>
+
 <style scoped>
 .v-progress-circular {
   margin: 1rem;

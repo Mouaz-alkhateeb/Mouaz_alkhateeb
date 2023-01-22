@@ -13,7 +13,7 @@
         color="blue"
         class="mr-5"
         style="float: right !important"
-        @click.prevent="this.dialog = true"
+        @click.prevent="open"
       >
         Update Post</v-btn
       >
@@ -29,7 +29,7 @@
               <v-list-subheader
                 >{{ post.commentsCount }} Comments
               </v-list-subheader>
-              <template v-for="(comment, index) in comments" :key="index">
+              <template v-for="(comment, index) in post.comments" :key="index">
                 <v-list-item>
                   <template v-slot:prepend>
                     <v-avatar color="grey-darken-1"></v-avatar>
@@ -71,7 +71,7 @@
               <v-btn
                 v-if="commentContent"
                 color="green"
-                @click.prevent="addComment()"
+                @click.prevent="addComment"
               >
                 Add Comment</v-btn
               >
@@ -132,12 +132,12 @@
             color="blue darken-1"
             class="mr-2"
             text
-            @click.prevent="updatepost()"
+            @click.prevent="updatepost"
             rounded
           >
             update Now
           </v-btn>
-          <v-btn color="red darken-1" text @click.prevent="close()" rounded>
+          <v-btn color="red darken-1" text @click.prevent="close" rounded>
             close
           </v-btn>
         </v-form>
@@ -145,175 +145,128 @@
     </v-card>
   </v-dialog>
 </template>
-
-<script>
+<script setup>
+import { computed, onMounted, ref } from "vue";
+import { useStore } from "vuex";
+import { useRoute } from "vue-router";
 import axios from "axios";
-export default {
-  mounted() {
-    this.post_id = this.$route.params.id;
-    this.getPostDetails();
-  },
-  data: () => ({
-    post_id: null,
-    cards: ["All Comments"],
-    dialog: false,
-    loader_work: false,
-    valid: true,
-    titleRules: [
-      (v) => !!v || "Title is required",
-      (v) => (v && v.length <= 20) || "Title must be less than 20 characters",
-    ],
-    contentRules: [(v) => !!v || "Content is required"],
-
-    comments: [],
-    commentContent: "",
-    commentRules: [(v) => !!v || "Content Comment is required"],
-    post: {
-      title: "",
-      content: "",
-      image: "",
-      commentsCount: 0,
-      file_data: "",
-    },
-  }),
-  computed: {
-    getToken() {
-      return this.$store.getters.getToken;
-    },
-    getApiURL() {
-      return this.$store.getters.getApiURL;
-    },
-    get_loggedIn() {
-      return this.$store.getters.get_loggedIn;
-    },
-  },
-  methods: {
-    getPostDetails() {
-      const headers = {
-        accept: "application/json",
-        "content-type": "application/json",
-        authorization: "Bearer " + this.getToken,
-      };
-      let data = {
-        id: this.post_id,
-      };
-      return new Promise((resolve, reject) => {
-        axios
-          .post(this.getApiURL + "/post/show", data, {
-            headers: headers,
-          })
-          .then((res) => {
-            this.post = res.data.data;
-            this.comments = res.data.data.comments;
-            resolve(res);
-          })
-          .catch((error) => {
-            reject(error);
-          });
-      });
-    },
-    async addComment() {
-      const headers = {
-        accept: "application/json",
-        "content-type": "application/json",
-        authorization: "Bearer " + this.getToken,
-      };
-      let data = {
-        post_id: this.post_id,
-        content: this.commentContent,
-      };
-
-      //const { valid } = await this.$refs.form.validate();
-
-      return new Promise((resolve, reject) => {
-        axios
-          .post(this.getApiURL + "/post/add_comment", data, {
-            headers: headers,
-          })
-          .then((res) => {
-            this.commentContent = "";
-            location.reload();
-            resolve(res);
-          })
-          .catch((error) => {
-            reject(error);
-          });
-      });
-    },
-    async updatepost() {
-      const headers = {
-        accept: "application/json",
-        "Content-Type": "multipart/form-data",
-        authorization: "Bearer " + this.getToken,
-      };
-      let data = {
-        id: this.post_id,
-        title: this.post.title,
-        content: this.post.content,
-        image: this.post.image,
-      };
-      const { valid } = await this.$refs.form.validate();
-      if (valid) {
-        this.loader_work = true;
-        return new Promise((resolve, reject) => {
-          axios
-            .post(this.getApiURL + "/post/update", data, {
-              headers: headers,
-            })
-            .then((res) => {
-              this.loader_work = false;
-              location.reload();
-              resolve(res);
-            })
-            .catch((error) => {
-              this.loader_work = false;
-              reject(error);
-            });
-        });
-      }
-    },
-    deleteComment(comment_id) {
-      const headers = {
-        accept: "application/json",
-        "content-type": "application/json",
-        authorization: "Bearer " + this.getToken,
-      };
-      let data = {
-        id: comment_id,
-      };
-      return new Promise((resolve, reject) => {
-        axios
-          .post(this.getApiURL + "/post/delete_comment", data, {
-            headers: headers,
-          })
-          .then((res) => {
-            this.$router.go(0);
-            resolve(res);
-          })
-          .catch((error) => {
-            reject(error);
-          });
-      });
-    },
-    onSelectFile() {
-      const input = this.$refs.fileInput;
-      const { files } = input;
-
-      if (files && files[0]) {
-        const reader = new FileReader();
-
-        reader.onload = (e) => {};
-        reader.readAsDataURL(files[0]);
-        this.image = files[0];
-      }
-    },
-    close() {
-      this.dialog = false;
-      this.$refs.form.reset();
-    },
-  },
+const store = useStore();
+const route = useRoute();
+const post_id = ref("");
+const commentContent = ref("");
+const dialog = ref(false);
+const loader_work = ref(false);
+const titleRules = ref([
+  (v) => !!v || "Title is required",
+  (v) => (v && v.length <= 20) || "Title must be less than 20 characters",
+]);
+const contentRules = ref([(v) => !!v || "Content is required"]);
+const open = () => {
+  dialog.value = true;
 };
+const close = () => {
+  dialog.value = false;
+};
+const cards = ref(["All Comments"]);
+post_id.value = route.params.id;
+const get_loggedIn = computed(() => {
+  return store.getters.get_loggedIn;
+});
+const getToken = computed(() => {
+  return store.getters.getToken;
+});
+const getApiURL = computed(() => {
+  return store.getters.getApiURL;
+});
+const post = computed(() => {
+  return store.state.post;
+});
+const addComment = async () => {
+  let headers = {
+    accept: "application/json",
+    authorization: "Bearer " + getToken.value,
+    "Content-Type": "multipart/form-data",
+  };
+  let data = {
+    post_id: post_id.value,
+    content: commentContent.value,
+  };
+  return new Promise((resolve, reject) => {
+    axios
+      .post(getApiURL.value + "/post/add_comment", data, {
+        headers: headers,
+      })
+      .then((res) => {
+        commentContent.value = "";
+        location.reload();
+        resolve(res);
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
+const deleteComment = async (comment_id) => {
+  const headers = {
+    accept: "application/json",
+    "content-type": "application/json",
+    authorization: "Bearer " + getToken.value,
+  };
+  let data = {
+    id: comment_id,
+  };
+  return new Promise((resolve, reject) => {
+    axios
+      .post(getApiURL.value + "/post/delete_comment", data, {
+        headers: headers,
+      })
+      .then((res) => {
+        location.reload();
+        resolve(res);
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+};
+const updatepost = async () => {
+  const headers = {
+    accept: "application/json",
+    "Content-Type": "multipart/form-data",
+    authorization: "Bearer " + getToken.value,
+  };
+  let data = {
+    id: post_id.value,
+    title: post.value.title,
+    content: post.value.content,
+    image: post.value.image,
+  };
+  loader_work.value = true;
+  return new Promise((resolve, reject) => {
+    axios
+      .post(getApiURL.value + "/post/update", data, {
+        headers: headers,
+      })
+      .then((res) => {
+        loader_work.value = false;
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+
+        resolve(res);
+      })
+      .catch((error) => {
+        loader_work.value = false;
+        reject(error);
+      });
+  });
+};
+
+onMounted(() => {
+  const post = ref(store.dispatch("getDetailsPost", post_id.value));
+  return {
+    post,
+  };
+});
 </script>
 
-<style>
-</style>
